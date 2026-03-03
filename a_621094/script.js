@@ -58,6 +58,30 @@
     landing: landing,
   };
 
+  var STEP_QUERY_PARAM = 'step';
+
+  function syncStepInUrl(stepId) {
+    try {
+      if (!stepId || !window || !window.location || !window.history) return;
+      var url = new URL(window.location.href);
+      url.searchParams.set(STEP_QUERY_PARAM, stepId);
+      window.history.replaceState(window.history.state, '', url.toString());
+    } catch (e) {}
+  }
+
+  function getStepFromUrl() {
+    try {
+      if (!window || !window.location) return '';
+      var params = new URLSearchParams(window.location.search || '');
+      var stepId = params.get(STEP_QUERY_PARAM);
+      if (!stepId) return '';
+      if (!steps[stepId]) return '';
+      return stepId;
+    } catch (e) {
+      return '';
+    }
+  }
+
   function getLanding() {
     if (landing) return landing;
     try {
@@ -421,6 +445,8 @@
         initPremiumTimer();
       } catch (e) {}
     }
+
+    syncStepInUrl(stepIdToShow);
   }
 
   var __reviewsCarouselStarted = false;
@@ -1467,6 +1493,12 @@
     syncScenariosContinueState();
 
     wireCharacterSliders();
+
+    try {
+      var initialStep = getStepFromUrl();
+      if (initialStep) showStep(initialStep);
+      else syncStepInUrl('welcome');
+    } catch (e) {}
 
     // Landing: header CTA should scroll to the pricing/discount block
     try {
