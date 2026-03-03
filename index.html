@@ -277,53 +277,26 @@
         return { owner, repo };
       }
 
-      async function fetchLastCommitDate(owner, repo, folder) {
-        const url = `https://api.github.com/repos/${owner}/${repo}/commits?path=${encodeURIComponent(folder)}&per_page=1`;
-        const response = await fetch(url, { headers: { Accept: 'application/vnd.github+json' } });
-        if (!response.ok) return null;
-        const commits = await response.json();
-        return commits[0]?.commit?.committer?.date || null;
-      }
-
-      async function fetchFolderTextFiles(owner, repo, folderName) {
+      async function fetchRepoTree(owner, repo) {
         const apiHeaders = { Accept: 'application/vnd.github+json' };
-        const queue = [folderName];
-        const textFiles = [];
-        let fileCount = 0;
-        let totalBytes = 0;
-
-        while (queue.length) {
-          const currentPath = queue.shift();
-          const url = `https://api.github.com/repos/${owner}/${repo}/contents/${encodeURIComponent(currentPath)}`;
-          const response = await fetch(url, { headers: apiHeaders });
-          if (!response.ok) continue;
-          const items = await response.json();
-
-          for (const item of items) {
-            if (item.name.startsWith('.')) continue;
-
-            if (item.type === 'dir') {
-              queue.push(item.path);
-              continue;
-            }
-
-            if (item.type !== 'file') continue;
-            fileCount += 1;
-            totalBytes += Number(item.size || 0);
-
-            if (!/\.(html?|js)$/i.test(item.name) || !item.download_url) continue;
-            try {
-              const fileRes = await fetch(item.download_url);
-              if (!fileRes.ok) continue;
-              const content = await fileRes.text();
-              textFiles.push({ name: item.name, content });
-            } catch (_) {
-              // ignore single file fetch error
-            }
-          }
+        const repoResponse = await fetch(`https://api.github.com/repos/${owner}/${repo}`, { headers: apiHeaders });
+        if (!repoResponse.ok) {
+          throw new Error(`GitHub API вернул ${repoResponse.status}`);
         }
 
-        return { textFiles, fileCount, totalBytes };
+        const repoInfo = await repoResponse.json();
+        const branch = repoInfo.default_branch || 'main';
+        const treeResponse = await fetch(
+          `https://api.github.com/repos/${owner}/${repo}/git/trees/${encodeURIComponent(branch)}?recursive=1`,
+          { headers: apiHeaders }
+        );
+
+        if (!treeResponse.ok) {
+          throw new Error(`GitHub API вернул ${treeResponse.status}`);
+        }
+
+        const treePayload = await treeResponse.json();
+        return Array.isArray(treePayload.tree) ? treePayload.tree : [];
       }
 
       async function parseGitHubPages() {
@@ -333,21 +306,29 @@
         }
 
         const { owner, repo } = context;
-        const contentsUrl = `https://api.github.com/repos/${owner}/${repo}/contents`;
-        const contentsResponse = await fetch(contentsUrl, { headers: { Accept: 'application/vnd.github+json' } });
-        if (!contentsResponse.ok) {
-          throw new Error(`GitHub API вернул ${contentsResponse.status}`);
+        const tree = await fetchRepoTree(owner, repo);
+        const folderStats = new Map();
+
+        for (const entry of tree) {
+          if (entry.type !== 'blob' || !entry.path) continue;
+          const [topFolder] = entry.path.split('/');
+          if (!topFolder || topFolder.startsWith('.') || topFolder === 'node_modules') continue;
+
+          const current = folderStats.get(topFolder) || { fileCount: 0, totalBytes: 0, textFiles: [] };
+          current.fileCount += 1;
+          current.totalBytes += Number(entry.size || 0);
+          if (/\.(html?|js)$/i.test(entry.path)) {
+            current.textFiles.push(entry.path);
+          }
+          folderStats.set(topFolder, current);
         }
 
-        const rootItems = await contentsResponse.json();
-        const folders = rootItems
-          .filter((item) => item.type === 'dir' && !item.name.startsWith('.') && item.name !== 'node_modules')
-          .sort((a, b) => a.name.localeCompare(b.name));
+        const folders = Array.from(folderStats.keys()).sort((a, b) => a.localeCompare(b));
 
         const landings = await Promise.all(
-          folders.map(async (folder) => {
-            const openUrl = `./${folder.name}/`;
-            const previewUrl = `./${folder.name}/index.html`;
+          folders.map(async (folderName) => {
+            const openUrl = `./${folderName}/`;
+            const previewUrl = `./${folderName}/index.html`;
             let html = '';
             let hasIndex = false;
 
@@ -361,22 +342,20 @@
               // ignore per-folder fetch errors
             }
 
-            const folderStats = await fetchFolderTextFiles(owner, repo, folder.name);
-            const { textFiles, fileCount, totalBytes } = folderStats;
-            const filesForSignals = textFiles.length ? textFiles : [{ name: 'index.html', content: html }];
-            const updatedAt = await fetchLastCommitDate(owner, repo, folder.name);
+            const stats = folderStats.get(folderName) || { fileCount: 0, totalBytes: 0 };
+            const filesForSignals = [{ name: 'index.html', content: html }];
             const quick = quickFlags(html);
             const tracking = trackingFlags(html);
             const signals = signalFlags(filesForSignals);
 
             return {
-              folderName: folder.name,
+              folderName,
               previewUrl,
               openUrl,
               hasIndex,
-              updatedAt,
-              files: fileCount || (hasIndex ? 1 : 0),
-              size: formatBytes(totalBytes || new Blob(filesForSignals.map((file) => file.content)).size),
+              updatedAt: null,
+              files: stats.fileCount || (hasIndex ? 1 : 0),
+              size: formatBytes(stats.totalBytes || new Blob(filesForSignals.map((file) => file.content)).size),
               quick,
               tracking,
               signals,
@@ -387,6 +366,20 @@
         return normalizePayload(landings);
       }
 
+
+      async function parseStaticManifest() {
+        const response = await fetch('./landings-manifest.json', { cache: 'no-store' });
+        if (!response.ok) {
+          throw new Error(`Статический манифест недоступен (${response.status})`);
+        }
+        const payload = await response.json();
+        const landings = normalizePayload(payload.landings);
+        if (!landings.length) {
+          throw new Error('Статический манифест пуст');
+        }
+        return landings;
+      }
+
       (async () => {
         try {
           data = await parseLocalApi();
@@ -394,6 +387,15 @@
           return;
         } catch (_) {
           // fallback to static mode for GitHub Pages
+        }
+
+        try {
+          data = await parseStaticManifest();
+          render(data);
+          summaryEl.textContent = `Сайтов: ${data.length} (статический режим)`;
+          return;
+        } catch (_) {
+          // fallback to GitHub API when manifest is missing
         }
 
         try {
