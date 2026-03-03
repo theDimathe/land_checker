@@ -1,0 +1,78 @@
+{
+  "generatedAt": "2026-03-03T14:46:51.005432Z",
+  "mode": "static-manifest",
+  "landings": [
+    {
+      "folderName": "a_1094",
+      "hasIndex": true,
+      "previewUrl": "./a_1094/index.html",
+      "openUrl": "./a_1094/",
+      "updatedAt": "2026-03-03T14:46:12.852040Z",
+      "files": 446,
+      "size": "14 MB",
+      "tracking": {
+        "yandexMetrika": true,
+        "facebookPixel": true,
+        "googleTagManager": false
+      },
+      "quick": {
+        "hasViewport": true
+      },
+      "signals": {
+        "funnelScript": true,
+        "funnelTracking": true,
+        "paywall": true,
+        "paywallMetrika": true,
+        "servicePages": false
+      }
+    },
+    {
+      "folderName": "a_621094",
+      "hasIndex": true,
+      "previewUrl": "./a_621094/index.html",
+      "openUrl": "./a_621094/",
+      "updatedAt": "2026-03-03T13:52:01.993411Z",
+      "files": 381,
+      "size": "13 MB",
+      "tracking": {
+        "yandexMetrika": true,
+        "facebookPixel": true,
+        "googleTagManager": false
+      },
+      "quick": {
+        "hasViewport": true
+      },
+      "signals": {
+        "funnelScript": true,
+        "funnelTracking": true,
+        "paywall": true,
+        "paywallMetrika": true,
+        "servicePages": false
+      }
+    },
+    {
+      "folderName": "alpha_2094",
+      "hasIndex": true,
+      "previewUrl": "./alpha_2094/index.html",
+      "openUrl": "./alpha_2094/",
+      "updatedAt": "2026-03-03T13:52:02.065411Z",
+      "files": 313,
+      "size": "12 MB",
+      "tracking": {
+        "yandexMetrika": true,
+        "facebookPixel": true,
+        "googleTagManager": false
+      },
+      "quick": {
+        "hasViewport": true
+      },
+      "signals": {
+        "funnelScript": true,
+        "funnelTracking": true,
+        "paywall": true,
+        "paywallMetrika": true,
+        "servicePages": false
+      }
+    }
+  ]
+}
