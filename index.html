@@ -125,13 +125,15 @@
               <th>Превью первого экрана</th>
               <th>Обновлено</th>
               <th>Файлы/размер</th>
-              <th>Формы</th>
-              <th>Скрипты</th>
               <th>Адаптив</th>
-              <th>Title</th>
               <th>Метрика</th>
               <th>FB Pixel</th>
               <th>GTM</th>
+              <th>Воронка</th>
+              <th>Трекинг воронки</th>
+              <th>Paywall</th>
+              <th>Метрика Paywall</th>
+              <th>Сервисные страницы</th>
               <th>Действия</th>
             </tr>
           </thead>
@@ -168,13 +170,15 @@
                 <td>${preview}</td>
                 <td>${formatDate(item.updatedAt)}</td>
                 <td>${item.files} / ${item.size}</td>
-                <td>${item.quick.forms}</td>
-                <td>${item.quick.externalScripts}</td>
                 <td>${boolTag(item.quick.hasViewport)}</td>
-                <td>${boolTag(item.quick.hasTitle)}</td>
                 <td>${lamp(item.tracking.yandexMetrika)}</td>
                 <td>${lamp(item.tracking.facebookPixel)}</td>
                 <td>${lamp(item.tracking.googleTagManager)}</td>
+                <td>${lamp(item.signals.funnelScript)}</td>
+                <td>${lamp(item.signals.funnelTracking)}</td>
+                <td>${lamp(item.signals.paywall)}</td>
+                <td>${lamp(item.signals.paywallMetrika)}</td>
+                <td>${lamp(item.signals.servicePages)}</td>
                 <td>
                   <a href="${item.openUrl}" target="_blank" rel="noreferrer">Открыть</a><br />
                   <span class="small">${item.hasIndex ? 'Готов к просмотру' : 'Проверьте структуру'}</span>
@@ -195,11 +199,23 @@
 
       const KB = 1024;
       const MB = KB * 1024;
+      const SIGNAL_PATTERNS = {
+        funnelScript: [/location\.search/i, /urlsearchparams/i, /[?&](utm_|sub|clickid|campaign|source)=/i, /quiz|funnel|step/i],
+        funnelTracking: [/ym\([^)]*reachgoal/i, /fbq\(['"]track/i, /gtag\(['"]event/i, /datalayer\.push/i],
+        paywall: [/paywall/i, /checkout/i, /payment/i, /credit\s*card/i, /paypal/i, /apple\s*pay/i, /google\s*pay/i],
+        terms: [/terms\s*(and|&)\s*conditions/i, /terms\s*of\s*use/i, /услов(ия|иями)\s*использования/i],
+        privacy: [/privacy\s*policy/i, /политик[аы]\s*конфиденциальности/i],
+        confirmation: [/confirm/i, /success/i, /thank\s*you/i, /подтвержден/i, /подтверждени/i],
+      };
 
       function formatBytes(bytes) {
         if (bytes >= MB) return `${(bytes / MB).toFixed(2)} MB`;
         if (bytes >= KB) return `${(bytes / KB).toFixed(1)} KB`;
         return `${bytes} B`;
+      }
+
+      function hasAnyPattern(content, patterns) {
+        return patterns.some((pattern) => pattern.test(content));
       }
 
       function trackingFlags(content) {
@@ -214,11 +230,38 @@
       function quickFlags(content) {
         const lower = content.toLowerCase();
         return {
-          forms: (content.match(/<form\b/gi) || []).length,
-          externalScripts: (content.match(/<script[^>]+src=/gi) || []).length,
           hasViewport: lower.includes('name="viewport"') || lower.includes("name='viewport'"),
-          hasTitle: /<title>\s*[^<]+\s*<\/title>/i.test(content),
         };
+      }
+
+      function signalFlags(files) {
+        const joined = files.map((file) => file.content).join('\n');
+        const paywallFiles = files.filter((file) => hasAnyPattern(file.content, SIGNAL_PATTERNS.paywall));
+        return {
+          funnelScript: hasAnyPattern(joined, SIGNAL_PATTERNS.funnelScript),
+          funnelTracking: hasAnyPattern(joined, SIGNAL_PATTERNS.funnelTracking),
+          paywall: paywallFiles.length > 0,
+          paywallMetrika: paywallFiles.some((file) => /ym\(|mc\.yandex|metrika/i.test(file.content)),
+          servicePages:
+            hasAnyPattern(joined, SIGNAL_PATTERNS.terms) &&
+            hasAnyPattern(joined, SIGNAL_PATTERNS.privacy) &&
+            hasAnyPattern(joined, SIGNAL_PATTERNS.confirmation),
+        };
+      }
+
+      function normalizePayload(landings) {
+        return (landings || []).map((item) => ({
+          ...item,
+          quick: item.quick || { hasViewport: false },
+          tracking: item.tracking || { yandexMetrika: false, facebookPixel: false, googleTagManager: false },
+          signals: item.signals || {
+            funnelScript: false,
+            funnelTracking: false,
+            paywall: false,
+            paywallMetrika: false,
+            servicePages: false,
+          },
+        }));
       }
 
       async function parseLocalApi() {
@@ -228,7 +271,7 @@
           throw new Error('Локальный API недоступен в текущем окружении');
         }
         const payload = await response.json();
-        return payload.landings || [];
+        return normalizePayload(payload.landings);
       }
 
       function getPagesContext() {
@@ -248,6 +291,27 @@
         if (!response.ok) return null;
         const commits = await response.json();
         return commits[0]?.commit?.committer?.date || null;
+      }
+
+      async function fetchFolderTextFiles(owner, repo, folderName) {
+        const url = `https://api.github.com/repos/${owner}/${repo}/contents/${encodeURIComponent(folderName)}`;
+        const response = await fetch(url, { headers: { Accept: 'application/vnd.github+json' } });
+        if (!response.ok) return [];
+        const files = await response.json();
+        const textFiles = files.filter((file) => file.type === 'file' && /\.(html?|js)$/i.test(file.name));
+
+        return Promise.all(
+          textFiles.map(async (file) => {
+            try {
+              const fileRes = await fetch(file.download_url);
+              if (!fileRes.ok) return null;
+              const content = await fileRes.text();
+              return { name: file.name, content };
+            } catch (_) {
+              return null;
+            }
+          })
+        ).then((items) => items.filter(Boolean));
       }
 
       async function parseGitHubPages() {
@@ -273,7 +337,6 @@
             const openUrl = `./${folder.name}/`;
             const previewUrl = `./${folder.name}/index.html`;
             let html = '';
-            let indexSize = 0;
             let hasIndex = false;
 
             try {
@@ -281,15 +344,17 @@
               if (pageResponse.ok) {
                 html = await pageResponse.text();
                 hasIndex = true;
-                indexSize = new Blob([html]).size;
               }
             } catch (_) {
               // ignore per-folder fetch errors
             }
 
+            const textFiles = await fetchFolderTextFiles(owner, repo, folder.name);
+            const filesForSignals = textFiles.length ? textFiles : [{ name: 'index.html', content: html }];
             const updatedAt = await fetchLastCommitDate(owner, repo, folder.name);
             const quick = quickFlags(html);
             const tracking = trackingFlags(html);
+            const signals = signalFlags(filesForSignals);
 
             return {
               folderName: folder.name,
@@ -297,15 +362,16 @@
               openUrl,
               hasIndex,
               updatedAt,
-              files: hasIndex ? 1 : 0,
-              size: formatBytes(indexSize),
+              files: textFiles.length || (hasIndex ? 1 : 0),
+              size: formatBytes(new Blob(filesForSignals.map((file) => file.content)).size),
               quick,
               tracking,
+              signals,
             };
           })
         );
 
-        return landings;
+        return normalizePayload(landings);
       }
 
       (async () => {
@@ -322,7 +388,7 @@
           render(data);
           summaryEl.textContent = `Сайтов: ${data.length} (GitHub Pages режим)`;
         } catch (error) {
-          rowsEl.innerHTML = `<tr><td colspan="13" class="bad">Ошибка загрузки: ${error.message || error}</td></tr>`;
+          rowsEl.innerHTML = `<tr><td colspan="15" class="bad">Ошибка загрузки: ${error.message || error}</td></tr>`;
           summaryEl.textContent = 'Ошибка загрузки';
         }
       })();
