@@ -373,7 +373,10 @@
           throw new Error(`Статический манифест недоступен (${response.status})`);
         }
         const payload = await response.json();
-        const landings = normalizePayload(payload.landings);
+         const landings = normalizePayload(payload.landings).map((item) => ({
+          ...item,
+          updatedAt: item.updatedAt || payload.generatedAt || null,
+        }));
         if (!landings.length) {
           throw new Error('Статический манифест пуст');
         }
