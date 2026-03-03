@@ -81,6 +81,8 @@
     landing: { stepNumber: 18, shortName: 'landing' },
   };
   var sentStepGoals = {};
+  var paymentVisitGoalSent = false;
+  var PAYMENT_VISIT_GOAL_ID = 'a_1094_payment_page_visit';
 
   function syncStepInUrl(stepId) {
     try {
@@ -102,6 +104,16 @@
 
       window.ym(METRIKA_COUNTER_ID, 'reachGoal', goalId);
       sentStepGoals[stepId] = true;
+    } catch (e) {}
+  }
+
+  function trackPaymentVisitGoal() {
+    try {
+      if (paymentVisitGoalSent) return;
+      if (typeof window === 'undefined' || typeof window.ym !== 'function') return;
+
+      window.ym(METRIKA_COUNTER_ID, 'reachGoal', PAYMENT_VISIT_GOAL_ID);
+      paymentVisitGoalSent = true;
     } catch (e) {}
   }
 
@@ -2146,6 +2158,8 @@
 
       function openCheckout() {
         if (!overlay) return;
+
+        trackPaymentVisitGoal();
 
         try {
           var overlays = document.querySelectorAll('#checkout-modal-overlay');
