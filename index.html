@@ -109,7 +109,7 @@
   <body>
     <main class="layout">
       <h1>Landing Control Room</h1>
-      <p class="sub">Быстрый мониторинг всех папок-лендингов: превью, дата изменений, трекинг и техсводка.</p>
+      <p class="sub">Быстрый мониторинг всех папок-лендингов: превью, дата изменений и техсводка.</p>
 
       <div class="toolbar">
         <input id="search" placeholder="Поиск по названию папки" />
@@ -129,10 +129,6 @@
               <th>Метрика</th>
               <th>FB Pixel</th>
               <th>GTM</th>
-              <th>Воронка</th>
-              <th>Трекинг воронки</th>
-              <th>Paywall</th>
-              <th>Метрика Paywall</th>
               <th>Сервисные страницы</th>
               <th>Действия</th>
             </tr>
@@ -174,10 +170,6 @@
                 <td>${lamp(item.tracking.yandexMetrika)}</td>
                 <td>${lamp(item.tracking.facebookPixel)}</td>
                 <td>${lamp(item.tracking.googleTagManager)}</td>
-                <td>${lamp(item.signals.funnelScript)}</td>
-                <td>${lamp(item.signals.funnelTracking)}</td>
-                <td>${lamp(item.signals.paywall)}</td>
-                <td>${lamp(item.signals.paywallMetrika)}</td>
                 <td>${lamp(item.signals.servicePages)}</td>
                 <td>
                   <a href="${item.openUrl}" target="_blank" rel="noreferrer">Открыть</a><br />
@@ -294,24 +286,44 @@
       }
 
       async function fetchFolderTextFiles(owner, repo, folderName) {
-        const url = `https://api.github.com/repos/${owner}/${repo}/contents/${encodeURIComponent(folderName)}`;
-        const response = await fetch(url, { headers: { Accept: 'application/vnd.github+json' } });
-        if (!response.ok) return [];
-        const files = await response.json();
-        const textFiles = files.filter((file) => file.type === 'file' && /\.(html?|js)$/i.test(file.name));
+        const apiHeaders = { Accept: 'application/vnd.github+json' };
+        const queue = [folderName];
+        const textFiles = [];
+        let fileCount = 0;
+        let totalBytes = 0;
 
-        return Promise.all(
-          textFiles.map(async (file) => {
-            try {
-              const fileRes = await fetch(file.download_url);
-              if (!fileRes.ok) return null;
-              const content = await fileRes.text();
-              return { name: file.name, content };
-            } catch (_) {
-              return null;
+        while (queue.length) {
+          const currentPath = queue.shift();
+          const url = `https://api.github.com/repos/${owner}/${repo}/contents/${encodeURIComponent(currentPath)}`;
+          const response = await fetch(url, { headers: apiHeaders });
+          if (!response.ok) continue;
+          const items = await response.json();
+
+          for (const item of items) {
+            if (item.name.startsWith('.')) continue;
+
+            if (item.type === 'dir') {
+              queue.push(item.path);
+              continue;
             }
-          })
-        ).then((items) => items.filter(Boolean));
+
+            if (item.type !== 'file') continue;
+            fileCount += 1;
+            totalBytes += Number(item.size || 0);
+
+            if (!/\.(html?|js)$/i.test(item.name) || !item.download_url) continue;
+            try {
+              const fileRes = await fetch(item.download_url);
+              if (!fileRes.ok) continue;
+              const content = await fileRes.text();
+              textFiles.push({ name: item.name, content });
+            } catch (_) {
+              // ignore single file fetch error
+            }
+          }
+        }
+
+        return { textFiles, fileCount, totalBytes };
       }
 
       async function parseGitHubPages() {
@@ -349,7 +361,8 @@
               // ignore per-folder fetch errors
             }
 
-            const textFiles = await fetchFolderTextFiles(owner, repo, folder.name);
+            const folderStats = await fetchFolderTextFiles(owner, repo, folder.name);
+            const { textFiles, fileCount, totalBytes } = folderStats;
             const filesForSignals = textFiles.length ? textFiles : [{ name: 'index.html', content: html }];
             const updatedAt = await fetchLastCommitDate(owner, repo, folder.name);
             const quick = quickFlags(html);
@@ -362,8 +375,8 @@
               openUrl,
               hasIndex,
               updatedAt,
-              files: textFiles.length || (hasIndex ? 1 : 0),
-              size: formatBytes(new Blob(filesForSignals.map((file) => file.content)).size),
+              files: fileCount || (hasIndex ? 1 : 0),
+              size: formatBytes(totalBytes || new Blob(filesForSignals.map((file) => file.content)).size),
               quick,
               tracking,
               signals,
@@ -388,7 +401,7 @@
           render(data);
           summaryEl.textContent = `Сайтов: ${data.length} (GitHub Pages режим)`;
         } catch (error) {
-          rowsEl.innerHTML = `<tr><td colspan="15" class="bad">Ошибка загрузки: ${error.message || error}</td></tr>`;
+          rowsEl.innerHTML = `<tr><td colspan="11" class="bad">Ошибка загрузки: ${error.message || error}</td></tr>`;
           summaryEl.textContent = 'Ошибка загрузки';
         }
       })();
