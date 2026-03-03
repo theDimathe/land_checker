@@ -58,6 +58,78 @@
     landing: landing,
   };
 
+  var STEP_QUERY_PARAM = 'step';
+  var METRIKA_COUNTER_ID = 106180606;
+  var STEP_GOALS = {
+    age: { stepNumber: 1, shortName: 'age' },
+    ethnicity: { stepNumber: 2, shortName: 'ethnicity' },
+    bodyType: { stepNumber: 3, shortName: 'body_type' },
+    breast: { stepNumber: 4, shortName: 'breast' },
+    butt: { stepNumber: 5, shortName: 'butt' },
+    hairColor: { stepNumber: 6, shortName: 'hair_color' },
+    specific: { stepNumber: 7, shortName: 'specific' },
+    matchFreak: { stepNumber: 8, shortName: 'match_freak' },
+    aiCompanion: { stepNumber: 9, shortName: 'ai_companion' },
+    character: { stepNumber: 10, shortName: 'character' },
+    likeToTry: { stepNumber: 11, shortName: 'like_to_try' },
+    scenarios: { stepNumber: 12, shortName: 'scenarios' },
+    generation: { stepNumber: 13, shortName: 'generation' },
+    generationQ1: { stepNumber: 14, shortName: 'generation_q1' },
+    generationQ2: { stepNumber: 15, shortName: 'generation_q2' },
+    generationQ3: { stepNumber: 16, shortName: 'generation_q3' },
+    summary: { stepNumber: 17, shortName: 'summary' },
+    landing: { stepNumber: 18, shortName: 'landing' },
+  };
+  var sentStepGoals = {};
+  var paymentVisitGoalSent = false;
+  var PAYMENT_VISIT_GOAL_ID = 'a_1094_payment_page_visit';
+
+  function syncStepInUrl(stepId) {
+    try {
+      if (!stepId || !window || !window.location || !window.history) return;
+      var url = new URL(window.location.href);
+      url.searchParams.set(STEP_QUERY_PARAM, stepId);
+      window.history.replaceState(window.history.state, '', url.toString());
+    } catch (e) {}
+  }
+
+  function trackStepGoal(stepId) {
+    try {
+      var goalMeta = STEP_GOALS[stepId];
+      if (!goalMeta) return;
+      if (sentStepGoals[stepId]) return;
+
+      var goalId = 'a_1094_' + goalMeta.stepNumber + '_' + goalMeta.shortName;
+      if (typeof window === 'undefined' || typeof window.ym !== 'function') return;
+
+      window.ym(METRIKA_COUNTER_ID, 'reachGoal', goalId);
+      sentStepGoals[stepId] = true;
+    } catch (e) {}
+  }
+
+  function trackPaymentVisitGoal() {
+    try {
+      if (paymentVisitGoalSent) return;
+      if (typeof window === 'undefined' || typeof window.ym !== 'function') return;
+
+      window.ym(METRIKA_COUNTER_ID, 'reachGoal', PAYMENT_VISIT_GOAL_ID);
+      paymentVisitGoalSent = true;
+    } catch (e) {}
+  }
+
+  function getStepFromUrl() {
+    try {
+      if (!window || !window.location) return '';
+      var params = new URLSearchParams(window.location.search || '');
+      var stepId = params.get(STEP_QUERY_PARAM);
+      if (!stepId) return '';
+      if (!steps[stepId]) return '';
+      return stepId;
+    } catch (e) {
+      return '';
+    }
+  }
+
   function getLanding() {
     if (landing) return landing;
     try {
@@ -421,6 +493,9 @@
         initPremiumTimer();
       } catch (e) {}
     }
+
+    syncStepInUrl(stepIdToShow);
+    trackStepGoal(stepIdToShow);
   }
 
   var __reviewsCarouselStarted = false;
@@ -1468,6 +1543,12 @@
 
     wireCharacterSliders();
 
+    try {
+      var initialStep = getStepFromUrl();
+      if (initialStep) showStep(initialStep);
+      else syncStepInUrl('welcome');
+    } catch (e) {}
+
     // Landing: header CTA should scroll to the pricing/discount block
     try {
       var landingCta = document.getElementById('header_cta_btn');
@@ -2077,6 +2158,8 @@
 
       function openCheckout() {
         if (!overlay) return;
+
+        trackPaymentVisitGoal();
 
         try {
           var overlays = document.querySelectorAll('#checkout-modal-overlay');
