@@ -366,6 +366,20 @@
         return normalizePayload(landings);
       }
 
+
+      async function parseStaticManifest() {
+        const response = await fetch('./landings-manifest.json', { cache: 'no-store' });
+        if (!response.ok) {
+          throw new Error(`Статический манифест недоступен (${response.status})`);
+        }
+        const payload = await response.json();
+        const landings = normalizePayload(payload.landings);
+        if (!landings.length) {
+          throw new Error('Статический манифест пуст');
+        }
+        return landings;
+      }
+
       (async () => {
         try {
           data = await parseLocalApi();
@@ -373,6 +387,15 @@
           return;
         } catch (_) {
           // fallback to static mode for GitHub Pages
+        }
+
+        try {
+          data = await parseStaticManifest();
+          render(data);
+          summaryEl.textContent = `Сайтов: ${data.length} (статический режим)`;
+          return;
+        } catch (_) {
+          // fallback to GitHub API when manifest is missing
         }
 
         try {
