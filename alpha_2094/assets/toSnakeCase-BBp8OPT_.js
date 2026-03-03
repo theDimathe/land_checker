@@ -1,0 +1,2 @@
+import"./index-BAPDHWs5.js";(function(){try{var e=typeof window<"u"?window:typeof global<"u"?global:typeof globalThis<"u"?globalThis:typeof self<"u"?self:{},d=new e.Error().stack;d&&(e._sentryDebugIds=e._sentryDebugIds||{},e._sentryDebugIds[d]="e904df79-a3c0-43d5-acf7-30ddbe53d7d4",e._sentryDebugIdIdentifier="sentry-dbid-e904df79-a3c0-43d5-acf7-30ddbe53d7d4")}catch{}})();const o=e=>e.toString().toLowerCase().trim().replace(/\s+/g,"_");export{o as t};
+//# sourceMappingURL=toSnakeCase-BBp8OPT_.js.map
