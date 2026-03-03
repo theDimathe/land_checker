@@ -6,7 +6,6 @@ const path = require('path');
 const HOST = '0.0.0.0';
 const PORT = Number(process.env.PORT || 4173);
 const ROOT = __dirname;
-const DASHBOARD_DIR = path.join(ROOT, 'dashboard');
 
 const TRACKING_PATTERNS = {
   yandexMetrika: [/mc\.yandex\.ru/i, /ym\(/i, /yandex\s*metrika/i],
@@ -16,7 +15,7 @@ const TRACKING_PATTERNS = {
 
 function isLandingDirectory(name) {
   if (name.startsWith('.')) return false;
-  if (name === 'dashboard' || name === 'node_modules') return false;
+  if (name === 'node_modules') return false;
   return true;
 }
 
@@ -165,7 +164,7 @@ const server = http.createServer(async (req, res) => {
   }
 
   if (requestPath === '/' || requestPath === '/index.html') {
-    return serveFile(res, path.join(DASHBOARD_DIR, 'index.html'));
+    return serveFile(res, path.join(ROOT, 'index.html'));
   }
 
   const normalized = path.normalize(requestPath).replace(/^([.][.][/\\])+/, '');

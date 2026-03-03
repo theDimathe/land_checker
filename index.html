@@ -2,12 +2,330 @@
 <html lang="ru">
   <head>
     <meta charset="UTF-8" />
-    <meta http-equiv="refresh" content="0;url=/" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Landing Control Room</title>
-    <script>
-      window.location.replace('/');
-    </script>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #0b1020;
+        --panel: #121a30;
+        --muted: #95a2c6;
+        --text: #e8ecff;
+        --ok: #20d67b;
+        --warn: #ffb84d;
+        --bad: #ff6b78;
+        --line: #23304d;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+        background: linear-gradient(180deg, #0a0f1d, #0c1324);
+        color: var(--text);
+      }
+      .layout {
+        max-width: 1440px;
+        margin: 0 auto;
+        padding: 24px;
+      }
+      h1 { margin: 0; font-size: 28px; }
+      .sub { color: var(--muted); margin-top: 6px; }
+      .toolbar {
+        margin: 16px 0 20px;
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+        align-items: center;
+      }
+      input {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        color: var(--text);
+        border-radius: 10px;
+        padding: 9px 12px;
+        min-width: 250px;
+      }
+      .pill {
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        padding: 6px 12px;
+        color: var(--muted);
+      }
+      .table-wrap {
+        overflow: auto;
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        background: rgba(18, 26, 48, 0.72);
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        min-width: 1300px;
+      }
+      th, td {
+        border-bottom: 1px solid var(--line);
+        padding: 10px;
+        text-align: left;
+        vertical-align: top;
+      }
+      th {
+        position: sticky;
+        top: 0;
+        background: #121a30;
+        z-index: 1;
+        color: #c9d2f0;
+        font-size: 13px;
+      }
+      tr:hover td { background: rgba(255, 255, 255, 0.02); }
+      .preview {
+        width: 270px;
+        height: 152px;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        overflow: hidden;
+        background: #070b15;
+      }
+      .preview iframe {
+        width: 1366px;
+        height: 768px;
+        border: 0;
+        transform: scale(0.198);
+        transform-origin: top left;
+        pointer-events: none;
+      }
+      .lamp { font-size: 18px; }
+      .ok { color: var(--ok); }
+      .bad { color: var(--bad); }
+      .warn { color: var(--warn); }
+      .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; }
+      a {
+        color: #92c8ff;
+        text-decoration: none;
+      }
+      a:hover { text-decoration: underline; }
+      .small { color: var(--muted); font-size: 12px; }
+    </style>
   </head>
-  <body></body>
+  <body>
+    <main class="layout">
+      <h1>Landing Control Room</h1>
+      <p class="sub">Быстрый мониторинг всех папок-лендингов: превью, дата изменений, трекинг и техсводка.</p>
+
+      <div class="toolbar">
+        <input id="search" placeholder="Поиск по названию папки" />
+        <span id="summary" class="pill">Загрузка...</span>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Папка</th>
+              <th>Превью первого экрана</th>
+              <th>Обновлено</th>
+              <th>Файлы/размер</th>
+              <th>Формы</th>
+              <th>Скрипты</th>
+              <th>Адаптив</th>
+              <th>Title</th>
+              <th>Метрика</th>
+              <th>FB Pixel</th>
+              <th>GTM</th>
+              <th>Действия</th>
+            </tr>
+          </thead>
+          <tbody id="rows"></tbody>
+        </table>
+      </div>
+    </main>
+
+    <script>
+      const rowsEl = document.getElementById('rows');
+      const searchEl = document.getElementById('search');
+      const summaryEl = document.getElementById('summary');
+      let data = [];
+
+      const lamp = (on) => `<span class="lamp ${on ? 'ok' : 'bad'}">●</span>`;
+      const boolTag = (on) => `<span class="${on ? 'ok' : 'warn'}">${on ? 'Да' : 'Нет'}</span>`;
+
+      function formatDate(iso) {
+        if (!iso) return '<span class="warn">Нет данных</span>';
+        return new Date(iso).toLocaleString('ru-RU');
+      }
+
+      function render(list) {
+        rowsEl.innerHTML = list
+          .map((item, index) => {
+            const preview = item.hasIndex
+              ? `<div class="preview"><iframe loading="lazy" src="${item.previewUrl}"></iframe></div>`
+              : '<span class="warn">index.html отсутствует</span>';
+
+            return `
+              <tr>
+                <td>${index + 1}</td>
+                <td class="mono">${item.folderName}</td>
+                <td>${preview}</td>
+                <td>${formatDate(item.updatedAt)}</td>
+                <td>${item.files} / ${item.size}</td>
+                <td>${item.quick.forms}</td>
+                <td>${item.quick.externalScripts}</td>
+                <td>${boolTag(item.quick.hasViewport)}</td>
+                <td>${boolTag(item.quick.hasTitle)}</td>
+                <td>${lamp(item.tracking.yandexMetrika)}</td>
+                <td>${lamp(item.tracking.facebookPixel)}</td>
+                <td>${lamp(item.tracking.googleTagManager)}</td>
+                <td>
+                  <a href="${item.openUrl}" target="_blank" rel="noreferrer">Открыть</a><br />
+                  <span class="small">${item.hasIndex ? 'Готов к просмотру' : 'Проверьте структуру'}</span>
+                </td>
+              </tr>
+            `;
+          })
+          .join('');
+
+        summaryEl.textContent = `Сайтов: ${list.length}`;
+      }
+
+      searchEl.addEventListener('input', () => {
+        const query = searchEl.value.trim().toLowerCase();
+        if (!query) return render(data);
+        render(data.filter((item) => item.folderName.toLowerCase().includes(query)));
+      });
+
+      const KB = 1024;
+      const MB = KB * 1024;
+
+      function formatBytes(bytes) {
+        if (bytes >= MB) return `${(bytes / MB).toFixed(2)} MB`;
+        if (bytes >= KB) return `${(bytes / KB).toFixed(1)} KB`;
+        return `${bytes} B`;
+      }
+
+      function trackingFlags(content) {
+        const lower = content.toLowerCase();
+        return {
+          yandexMetrika: /ym\(|mc\.yandex|metrika/i.test(content),
+          facebookPixel: /fbq\(|connect\.facebook\.net|facebook pixel/i.test(content),
+          googleTagManager: /gtm-|googletagmanager\.com/i.test(lower),
+        };
+      }
+
+      function quickFlags(content) {
+        const lower = content.toLowerCase();
+        return {
+          forms: (content.match(/<form\b/gi) || []).length,
+          externalScripts: (content.match(/<script[^>]+src=/gi) || []).length,
+          hasViewport: lower.includes('name="viewport"') || lower.includes("name='viewport'"),
+          hasTitle: /<title>\s*[^<]+\s*<\/title>/i.test(content),
+        };
+      }
+
+      async function parseLocalApi() {
+        const response = await fetch('./api/landings');
+        const contentType = response.headers.get('content-type') || '';
+        if (!response.ok || !contentType.includes('application/json')) {
+          throw new Error('Локальный API недоступен в текущем окружении');
+        }
+        const payload = await response.json();
+        return payload.landings || [];
+      }
+
+      function getPagesContext() {
+        const hostParts = window.location.hostname.split('.');
+        const owner = hostParts[0];
+        const pathParts = window.location.pathname.split('/').filter(Boolean);
+        const repo = pathParts[0];
+        if (!owner || !repo || !window.location.hostname.includes('github.io')) {
+          return null;
+        }
+        return { owner, repo };
+      }
+
+      async function fetchLastCommitDate(owner, repo, folder) {
+        const url = `https://api.github.com/repos/${owner}/${repo}/commits?path=${encodeURIComponent(folder)}&per_page=1`;
+        const response = await fetch(url, { headers: { Accept: 'application/vnd.github+json' } });
+        if (!response.ok) return null;
+        const commits = await response.json();
+        return commits[0]?.commit?.committer?.date || null;
+      }
+
+      async function parseGitHubPages() {
+        const context = getPagesContext();
+        if (!context) {
+          throw new Error('GitHub Pages контекст не определён');
+        }
+
+        const { owner, repo } = context;
+        const contentsUrl = `https://api.github.com/repos/${owner}/${repo}/contents`;
+        const contentsResponse = await fetch(contentsUrl, { headers: { Accept: 'application/vnd.github+json' } });
+        if (!contentsResponse.ok) {
+          throw new Error(`GitHub API вернул ${contentsResponse.status}`);
+        }
+
+        const rootItems = await contentsResponse.json();
+        const folders = rootItems
+          .filter((item) => item.type === 'dir' && !item.name.startsWith('.') && item.name !== 'node_modules')
+          .sort((a, b) => a.name.localeCompare(b.name));
+
+        const landings = await Promise.all(
+          folders.map(async (folder) => {
+            const openUrl = `./${folder.name}/`;
+            const previewUrl = `./${folder.name}/index.html`;
+            let html = '';
+            let indexSize = 0;
+            let hasIndex = false;
+
+            try {
+              const pageResponse = await fetch(previewUrl);
+              if (pageResponse.ok) {
+                html = await pageResponse.text();
+                hasIndex = true;
+                indexSize = new Blob([html]).size;
+              }
+            } catch (_) {
+              // ignore per-folder fetch errors
+            }
+
+            const updatedAt = await fetchLastCommitDate(owner, repo, folder.name);
+            const quick = quickFlags(html);
+            const tracking = trackingFlags(html);
+
+            return {
+              folderName: folder.name,
+              previewUrl,
+              openUrl,
+              hasIndex,
+              updatedAt,
+              files: hasIndex ? 1 : 0,
+              size: formatBytes(indexSize),
+              quick,
+              tracking,
+            };
+          })
+        );
+
+        return landings;
+      }
+
+      (async () => {
+        try {
+          data = await parseLocalApi();
+          render(data);
+          return;
+        } catch (_) {
+          // fallback to static mode for GitHub Pages
+        }
+
+        try {
+          data = await parseGitHubPages();
+          render(data);
+          summaryEl.textContent = `Сайтов: ${data.length} (GitHub Pages режим)`;
+        } catch (error) {
+          rowsEl.innerHTML = `<tr><td colspan="13" class="bad">Ошибка загрузки: ${error.message || error}</td></tr>`;
+          summaryEl.textContent = 'Ошибка загрузки';
+        }
+      })();
+    </script>
+  </body>
 </html>
