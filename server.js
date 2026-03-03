@@ -6,7 +6,6 @@ const path = require('path');
 const HOST = '0.0.0.0';
 const PORT = Number(process.env.PORT || 4173);
 const ROOT = __dirname;
-const DASHBOARD_DIR = path.join(ROOT, 'dashboard');
 
 const TRACKING_PATTERNS = {
   yandexMetrika: [/mc\.yandex\.ru/i, /ym\(/i, /yandex\s*metrika/i],
@@ -14,16 +13,30 @@ const TRACKING_PATTERNS = {
   googleTagManager: [/googletagmanager\.com/i, /gtag\(/i, /GTM-[A-Z0-9]+/i],
 };
 
+const SIGNAL_PATTERNS = {
+  funnelScript: [/location\.search/i, /URLSearchParams/i, /[?&](utm_|sub|clickid|campaign|source)=/i, /quiz|funnel|step/i],
+  funnelTracking: [/ym\([^)]*reachGoal/i, /fbq\(['"]track/i, /gtag\(['"]event/i, /dataLayer\.push/i],
+  paywall: [/paywall/i, /checkout/i, /payment/i, /credit\s*card/i, /paypal/i, /apple\s*pay/i, /google\s*pay/i],
+  terms: [/terms\s*(and|&)\s*conditions/i, /terms\s*of\s*use/i, /услов(ия|иями)\s*использования/i],
+  privacy: [/privacy\s*policy/i, /политик[аы]\s*конфиденциальности/i],
+  confirmation: [/confirm/i, /success/i, /thank\s*you/i, /подтвержден/i, /подтверждени/i],
+};
+
+function hasAnyPattern(content, patterns) {
+  return patterns.some((pattern) => pattern.test(content));
+}
+
 function isLandingDirectory(name) {
   if (name.startsWith('.')) return false;
-  if (name === 'dashboard' || name === 'node_modules') return false;
+  if (name === 'node_modules') return false;
   return true;
 }
 
-async function getDirectoryStats(dirPath) {
+async function readFolderFiles(dirPath) {
   let totalSize = 0;
   let fileCount = 0;
   let latestMtime = 0;
+  const textFiles = [];
 
   async function walk(currentPath) {
     const entries = await fs.readdir(currentPath, { withFileTypes: true });
@@ -32,23 +45,33 @@ async function getDirectoryStats(dirPath) {
       const fullPath = path.join(currentPath, entry.name);
       if (entry.isDirectory()) {
         await walk(fullPath);
-      } else {
-        const stat = await fs.stat(fullPath);
-        totalSize += stat.size;
-        fileCount += 1;
-        latestMtime = Math.max(latestMtime, stat.mtimeMs);
+        continue;
+      }
+
+      const stat = await fs.stat(fullPath);
+      totalSize += stat.size;
+      fileCount += 1;
+      latestMtime = Math.max(latestMtime, stat.mtimeMs);
+
+      if (/\.(html?|js)$/i.test(entry.name) && stat.size < 1_500_000) {
+        try {
+          const content = await fs.readFile(fullPath, 'utf8');
+          textFiles.push({ name: entry.name, content });
+        } catch {
+          // Ignore undecodable files.
+        }
       }
     }
   }
 
   await walk(dirPath);
-  return { totalSize, fileCount, latestMtime };
+  return { totalSize, fileCount, latestMtime, textFiles };
 }
 
 function detectTracking(content) {
   const result = {};
   for (const [key, patterns] of Object.entries(TRACKING_PATTERNS)) {
-    result[key] = patterns.some((pattern) => pattern.test(content));
+    result[key] = hasAnyPattern(content, patterns);
   }
   return result;
 }
@@ -60,6 +83,22 @@ function collectQuickStats(content) {
   const hasTitle = /<title>[^<]+<\/title>/i.test(content);
 
   return { forms, externalScripts, hasViewport, hasTitle };
+}
+
+function detectSignals(textFiles) {
+  const joined = textFiles.map((file) => file.content).join('\n');
+  const paywallFiles = textFiles.filter((file) => hasAnyPattern(file.content, SIGNAL_PATTERNS.paywall));
+  const termsFound = hasAnyPattern(joined, SIGNAL_PATTERNS.terms);
+  const privacyFound = hasAnyPattern(joined, SIGNAL_PATTERNS.privacy);
+  const confirmationFound = hasAnyPattern(joined, SIGNAL_PATTERNS.confirmation);
+
+  return {
+    funnelScript: hasAnyPattern(joined, SIGNAL_PATTERNS.funnelScript),
+    funnelTracking: hasAnyPattern(joined, SIGNAL_PATTERNS.funnelTracking),
+    paywall: paywallFiles.length > 0,
+    paywallMetrika: paywallFiles.some((file) => hasAnyPattern(file.content, TRACKING_PATTERNS.yandexMetrika)),
+    servicePages: termsFound && privacyFound && confirmationFound,
+  };
 }
 
 function formatBytes(bytes) {
@@ -95,9 +134,10 @@ async function loadLandings() {
       hasIndex = false;
     }
 
-    const stats = await getDirectoryStats(folderPath);
-    const tracking = hasIndex ? detectTracking(indexHtml) : detectTracking('');
-    const quick = hasIndex ? collectQuickStats(indexHtml) : collectQuickStats('');
+    const stats = await readFolderFiles(folderPath);
+    const tracking = detectTracking(indexHtml);
+    const quick = collectQuickStats(indexHtml);
+    const signals = detectSignals(stats.textFiles);
 
     landings.push({
       folderName,
@@ -109,6 +149,7 @@ async function loadLandings() {
       size: formatBytes(stats.totalSize),
       tracking,
       quick,
+      signals,
     });
   }
 
@@ -165,7 +206,7 @@ const server = http.createServer(async (req, res) => {
   }
 
   if (requestPath === '/' || requestPath === '/index.html') {
-    return serveFile(res, path.join(DASHBOARD_DIR, 'index.html'));
+    return serveFile(res, path.join(ROOT, 'index.html'));
   }
 
   const normalized = path.normalize(requestPath).replace(/^([.][.][/\\])+/, '');
