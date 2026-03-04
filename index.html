@@ -327,7 +327,7 @@
 
         const landings = await Promise.all(
           folders.map(async (folderName) => {
-            const openUrl = `./${folderName}/`;
+            const openUrl = `./${folderName}/index.html`;
             const previewUrl = `./${folderName}/index.html`;
             let html = '';
             let hasIndex = false;

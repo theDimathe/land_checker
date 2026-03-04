@@ -143,7 +143,7 @@ async function loadLandings() {
       folderName,
       hasIndex,
       previewUrl: hasIndex ? `/${folderName}/index.html` : null,
-      openUrl: `/${folderName}/`,
+      openUrl: `/${folderName}/index.html`,
       updatedAt: stats.latestMtime ? new Date(stats.latestMtime).toISOString() : null,
       files: stats.fileCount,
       size: formatBytes(stats.totalSize),
