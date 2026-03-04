@@ -23,7 +23,7 @@
 
 | Сайт | Размер директории | Битые/неразрешённые ссылки | Пустые `catch {}` | `!important` в CSS | Качество кода | Валидность | Скорость | Чистота | Итог /100 | Индикатор | Цвет индикатора (hex) |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|---|
-| `alpha_2094` | 12.17 MB | 2 (`checkout-modal-dev.css`, `/legal/terms-of-service`) | 133 | 121 | 50 | 57 | 52 | 45 | **51** | <span style="color:#f97316">●</span> | `#f97316` |
+| `alpha_2094` | 12.21 MB | 2 (`checkout-modal-dev.css`, `/legal/terms-of-service`) | 89 | 128 | 50 | 57 | 52 | 45 | **51** | <span style="color:#f97316">●</span> | `#f97316` |
 | `a_1094` | 13.85 MB | 2 (`checkout-modal-dev.css`, `/legal/terms-of-service`) | 135 | 111 | 47 | 54 | 48 | 42 | **48** | <span style="color:#f97316">●</span> | `#f97316` |
 | `a_621094` | 13.27 MB | 5 (`checkout-modal-dev.css`, `/legal/terms-of-service` + 3 отсутствующих изображений) | 135 | 111 | 45 | 48 | 47 | 40 | **45** | <span style="color:#f97316">●</span> | `#f97316` |
 
