@@ -85,6 +85,43 @@
   var PAYPAGE_URL = 'paypage.html';
   var PAYMENT_VISIT_GOAL_ID = 'a_1094_payment_page_visit';
 
+  function getPaySuccessUrl() {
+    try {
+      var u = new URL(window.location.href);
+      try {
+        u.searchParams.set('Pay', 'success');
+      } catch (e2) {}
+      return u.toString();
+    } catch (e) {
+      try {
+        var href = String(window.location.href || '');
+        var hash = '';
+        var hi = href.indexOf('#');
+        if (hi >= 0) {
+          hash = href.slice(hi);
+          href = href.slice(0, hi);
+        }
+        var qi = href.indexOf('?');
+        if (qi < 0) return href + '?Pay=success' + hash;
+        if (href.indexOf('Pay=') >= 0) {
+          href = href.replace(/([?&])Pay=[^&]*/i, '$1Pay=success');
+          return href + hash;
+        }
+        return href + '&Pay=success' + hash;
+      } catch (e3) {
+        return '?Pay=success';
+      }
+    }
+  }
+
+  function markPaySuccessInUrl() {
+    try {
+      if (window.history && window.history.replaceState) {
+        window.history.replaceState(null, document.title, getPaySuccessUrl());
+      }
+    } catch (e) {}
+  }
+
   function syncStepInUrl(stepId) {
     try {
       if (!stepId || !window || !window.location || !window.history) return;
@@ -1934,11 +1971,14 @@
                   }
                 } catch (err) {}
                 try {
-                  showNewUsersBlockedModal();
+                  markPaySuccessInUrl();
                 } catch (e2) {}
+                try {
+                  showNewUsersBlockedModal();
+                } catch (e3) {}
                 return false;
               });
-            } catch (e3) {}
+            } catch (e4) {}
           }
 
           var paypalBtn = null;
@@ -1985,35 +2025,6 @@
         if (form.getAttribute('data-cc-validation-bound') === '1') return;
         form.setAttribute('data-cc-validation-bound', '1');
 
-        function getPaySuccessUrl() {
-          try {
-            var u = new URL(window.location.href);
-            try {
-              u.searchParams.set('Pay', 'success');
-            } catch (e2) {}
-            return u.toString();
-          } catch (e) {
-            try {
-              var href = String(window.location.href || '');
-              var hash = '';
-              var hi = href.indexOf('#');
-              if (hi >= 0) {
-                hash = href.slice(hi);
-                href = href.slice(0, hi);
-              }
-              var qi = href.indexOf('?');
-              if (qi < 0) return href + '?Pay=success' + hash;
-              if (href.indexOf('Pay=') >= 0) {
-                href = href.replace(/([?&])Pay=[^&]*/i, '$1Pay=success');
-                return href + hash;
-              }
-              return href + '&Pay=success' + hash;
-            } catch (e3) {
-              return '?Pay=success';
-            }
-          }
-        }
-
         function formatCardNumber(v) {
           var digits = (v || '').replace(/\D+/g, '').slice(0, 16);
           var out = '';
@@ -2055,11 +2066,7 @@
               if (e && e.preventDefault) e.preventDefault();
             } catch (err2) {}
             try {
-              try {
-                if (window.history && window.history.replaceState) {
-                  window.history.replaceState(null, document.title, getPaySuccessUrl());
-                }
-              } catch (e3) {}
+              markPaySuccessInUrl();
               showNewUsersBlockedModal();
             } catch (e2) {}
             return;
