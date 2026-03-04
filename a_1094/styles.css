@@ -592,7 +592,9 @@ label._cardWithCheckbox_xzcqt_46:has(input[type="checkbox"]:checked)::after {
  #checkout-modal ._sectionContainer_d5uie_153:not(._payButtons_d5uie_184) ._paymentWrapper_d5uie_57 {
    width: 384px;
    max-width: 100%;
-   height: 363px;
+   height: auto !important;
+   min-height: 363px !important;
+   overflow: visible !important;
    padding: 0;
    margin: 0 auto;
    background: transparent;
@@ -606,8 +608,10 @@ label._cardWithCheckbox_xzcqt_46:has(input[type="checkbox"]:checked)::after {
  }
 
  #checkout-modal #payment-form-container_\#123 {
-   width: 100%;
-   height: 324px;
+   width: 100% !important;
+   height: auto !important;
+   min-height: 324px !important;
+   overflow: visible !important;
    background: transparent;
  }
 
@@ -690,6 +694,15 @@ label._cardWithCheckbox_xzcqt_46:has(input[type="checkbox"]:checked)::after {
    box-sizing: border-box !important;
  }
 
+ #checkout-modal #payment-form-container_\#123 {
+   width: 100% !important;
+   max-width: 100% !important;
+ }
+
+ #checkout-modal #payment-form-container_\#123 ._simplePaymentForm {
+   width: 100% !important;
+ }
+
  #checkout-modal ._poweredBy_d5uie_295 {
    position: relative;
    left: 2px;
@@ -704,6 +717,19 @@ label._cardWithCheckbox_xzcqt_46:has(input[type="checkbox"]:checked)::after {
  #checkout-modal ._fakePaymentInput:focus {
    border-color: #2C2E35;
    box-shadow: none;
+ }
+
+ #checkout-modal ._fakePaymentInput._inputError {
+   border-color: #FF4D4F !important;
+ }
+
+ #checkout-modal ._paymentErrorText {
+   color: #FF4D4F;
+   font-size: 12px;
+   line-height: 16px;
+   font-weight: 600;
+   margin-top: -2px;
+   white-space: normal;
  }
 
  #checkout-modal ._fakePaymentInput::placeholder {
