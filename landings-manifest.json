@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-03-03T14:46:51.005432Z",
+  "generatedAt": "2026-03-04T07:32:30.853Z",
   "mode": "static-manifest",
   "landings": [
     {
@@ -7,7 +7,7 @@
       "hasIndex": true,
       "previewUrl": "./a_1094/index.html",
       "openUrl": "./a_1094/",
-      "updatedAt": "2026-03-03T14:46:12.852040Z",
+      "updatedAt": "2026-03-04T07:31:50.535Z",
       "files": 446,
       "size": "14 MB",
       "tracking": {
@@ -31,7 +31,7 @@
       "hasIndex": true,
       "previewUrl": "./a_621094/index.html",
       "openUrl": "./a_621094/",
-      "updatedAt": "2026-03-03T13:52:01.993411Z",
+      "updatedAt": "2026-03-04T07:31:50.599Z",
       "files": 381,
       "size": "13 MB",
       "tracking": {
@@ -55,7 +55,7 @@
       "hasIndex": true,
       "previewUrl": "./alpha_2094/index.html",
       "openUrl": "./alpha_2094/",
-      "updatedAt": "2026-03-03T13:52:02.065411Z",
+      "updatedAt": "2026-03-04T07:31:50.659Z",
       "files": 313,
       "size": "12 MB",
       "tracking": {
@@ -72,6 +72,30 @@
         "paywall": true,
         "paywallMetrika": true,
         "servicePages": false
+      }
+    },
+    {
+      "folderName": "flirtai.space",
+      "hasIndex": true,
+      "previewUrl": "./flirtai.space/index.html",
+      "openUrl": "./flirtai.space/",
+      "updatedAt": "2026-03-04T07:31:50.695Z",
+      "files": 206,
+      "size": "8.2 MB",
+      "tracking": {
+        "yandexMetrika": true,
+        "facebookPixel": true,
+        "googleTagManager": true
+      },
+      "quick": {
+        "hasViewport": true
+      },
+      "signals": {
+        "funnelScript": true,
+        "funnelTracking": true,
+        "paywall": true,
+        "paywallMetrika": true,
+        "servicePages": true
       }
     }
   ]
