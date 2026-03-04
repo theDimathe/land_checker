@@ -1026,18 +1026,18 @@
   }
 
   function onAgeSelected() {
-    showStep('bodyType');
+    showStep('ethnicity');
   }
 
   function onEthnicityBack() {
-    showStep('bodyType');
+    showStep('age');
   }
 
   function onEthnicitySelected() {
     try {
       updateSummaryImageFromEthnicity();
     } catch (e) {}
-    showStep('breast');
+    showStep('bodyType');
   }
 
   function onBodyTypeBack() {
