@@ -76,6 +76,7 @@
   };
   var sentStepGoals = {};
   var paymentVisitGoalSent = false;
+  var PAYPAGE_URL = 'paypage.html';
   var PAYMENT_VISIT_GOAL_ID = 'alpha_2094_payment_page_visit';
 
   function syncStepInUrl(stepId) {
@@ -109,6 +110,20 @@
       window.ym(METRIKA_COUNTER_ID, 'reachGoal', PAYMENT_VISIT_GOAL_ID);
       paymentVisitGoalSent = true;
     } catch (e) {}
+  }
+
+
+  function openPayPage() {
+    try {
+      var targetUrl = new URL(PAYPAGE_URL, window.location.href);
+      var currentUrl = new URL(window.location.href);
+      currentUrl.searchParams.forEach(function (value, key) {
+        targetUrl.searchParams.set(key, value);
+      });
+      window.location.href = targetUrl.toString();
+    } catch (e) {
+      window.location.href = PAYPAGE_URL;
+    }
   }
 
   function getStepFromUrl() {
@@ -2157,7 +2172,7 @@
           try {
             if (e && e.preventDefault) e.preventDefault();
           } catch (err) {}
-          openCheckout();
+          openPayPage();
         });
       }
 
