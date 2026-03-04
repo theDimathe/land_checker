@@ -104,6 +104,24 @@
       }
       a:hover { text-decoration: underline; }
       .small { color: var(--muted); font-size: 12px; }
+      .tabs {
+        display: flex;
+        gap: 8px;
+      }
+      .tab {
+        background: transparent;
+        color: var(--muted);
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        padding: 7px 14px;
+        font-weight: 600;
+        cursor: pointer;
+      }
+      .tab.active {
+        color: var(--text);
+        border-color: #4e6cb7;
+        background: rgba(78, 108, 183, 0.2);
+      }
     </style>
   </head>
   <body>
@@ -112,6 +130,10 @@
       <p class="sub">Быстрый мониторинг всех папок-лендингов: превью, дата изменений и техсводка.</p>
 
       <div class="toolbar">
+        <div class="tabs" role="tablist" aria-label="Разделы дэшборда">
+          <button class="tab active" id="tab-main" data-tab="main" role="tab" aria-selected="true">Main</button>
+          <button class="tab" id="tab-backstage" data-tab="backstage" role="tab" aria-selected="false">Backstage</button>
+        </div>
         <input id="search" placeholder="Поиск по названию папки" />
         <span id="summary" class="pill">Загрузка...</span>
       </div>
@@ -142,7 +164,11 @@
       const rowsEl = document.getElementById('rows');
       const searchEl = document.getElementById('search');
       const summaryEl = document.getElementById('summary');
+      const tabsEl = Array.from(document.querySelectorAll('[data-tab]'));
       let data = [];
+      let activeTab = 'main';
+
+      const MAIN_FOLDERS = new Set(['a_1094', 'a_621094', 'alpha_2094']);
 
       const lamp = (on) => `<span class="lamp ${on ? 'ok' : 'bad'}">●</span>`;
       const boolTag = (on) => `<span class="${on ? 'ok' : 'warn'}">${on ? 'Да' : 'Нет'}</span>`;
@@ -183,10 +209,33 @@
         summaryEl.textContent = `Сайтов: ${list.length}`;
       }
 
-      searchEl.addEventListener('input', () => {
+      function isInActiveTab(item) {
+        const inMain = MAIN_FOLDERS.has(item.folderName);
+        return activeTab === 'main' ? inMain : !inMain;
+      }
+
+      function applyFilters() {
         const query = searchEl.value.trim().toLowerCase();
-        if (!query) return render(data);
-        render(data.filter((item) => item.folderName.toLowerCase().includes(query)));
+        const filtered = data
+          .filter((item) => isInActiveTab(item))
+          .filter((item) => !query || item.folderName.toLowerCase().includes(query));
+        render(filtered);
+      }
+
+      searchEl.addEventListener('input', () => {
+        applyFilters();
+      });
+
+      tabsEl.forEach((tab) => {
+        tab.addEventListener('click', () => {
+          activeTab = tab.dataset.tab;
+          tabsEl.forEach((button) => {
+            const isCurrent = button === tab;
+            button.classList.toggle('active', isCurrent);
+            button.setAttribute('aria-selected', String(isCurrent));
+          });
+          applyFilters();
+        });
       });
 
       const KB = 1024;
@@ -386,7 +435,7 @@
       (async () => {
         try {
           data = await parseLocalApi();
-          render(data);
+          applyFilters();
           return;
         } catch (_) {
           // fallback to static mode for GitHub Pages
@@ -394,8 +443,8 @@
 
         try {
           data = await parseStaticManifest();
-          render(data);
-          summaryEl.textContent = `Сайтов: ${data.length} (статический режим)`;
+          applyFilters();
+          summaryEl.textContent = `${summaryEl.textContent} (статический режим)`;
           return;
         } catch (_) {
           // fallback to GitHub API when manifest is missing
@@ -403,8 +452,8 @@
 
         try {
           data = await parseGitHubPages();
-          render(data);
-          summaryEl.textContent = `Сайтов: ${data.length} (GitHub Pages режим)`;
+          applyFilters();
+          summaryEl.textContent = `${summaryEl.textContent} (GitHub Pages режим)`;
         } catch (error) {
           rowsEl.innerHTML = `<tr><td colspan="11" class="bad">Ошибка загрузки: ${error.message || error}</td></tr>`;
           summaryEl.textContent = 'Ошибка загрузки';
