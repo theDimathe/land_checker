@@ -237,6 +237,199 @@ body {
   }
 }
 
+#step-welcome label._label_1nhvq_40 {
+  position: relative;
+  --accent: #ff9900 !important;
+  --accent-hover: #ffb347 !important;
+  --accent-rgb: 255, 153, 0 !important;
+}
+
+#step-welcome section[data-quiz-step="welcome"] {
+  max-width: var(--max-width-content) !important;
+  padding-inline: 16px !important;
+  gap: 20px !important;
+  margin-bottom: 32px !important;
+  flex: 1 !important;
+  width: 100% !important;
+  display: grid !important;
+  place-items: center !important;
+  grid-template-columns: repeat(4, minmax(0, 166px)) !important;
+  align-items: stretch !important;
+  justify-items: stretch !important;
+  justify-content: center !important;
+}
+
+@media screen and (width <= 767px) {
+  #step-welcome section[data-quiz-step="welcome"] {
+    margin-bottom: 12px !important;
+    gap: 12px !important;
+    grid-template-columns: repeat(2, minmax(0, 164px)) !important;
+  }
+}
+
+ @media (max-width: 530px) {
+   #step-welcome ._ethnicHeader_hau6l_40 {
+     gap: 8px;
+   }
+
+   #step-welcome ._ethnicHeader_hau6l_40 h3 {
+     font-size: 24px;
+     line-height: 1.25;
+   }
+
+   #step-welcome ._ethnicHeader_hau6l_40 p {
+     font-size: 14px;
+     line-height: 1.35;
+     margin: 0;
+   }
+
+   #step-welcome section[data-quiz-step="welcome"] {
+     gap: 10px !important;
+     margin-bottom: 8px !important;
+   }
+
+   #step-welcome label._label_1nhvq_40 {
+     height: 232px !important;
+   }
+ }
+
+ @media (max-width: 530px) and (max-height: 720px) {
+   #step-welcome ._ethnicHeader_hau6l_40 {
+     gap: 6px;
+   }
+
+   #step-welcome ._ethnicHeader_hau6l_40 h3 {
+     font-size: 22px;
+     line-height: 1.2;
+   }
+
+   #step-welcome section[data-quiz-step="welcome"] {
+     gap: 8px !important;
+   }
+
+   #step-welcome label._label_1nhvq_40 {
+     height: 212px !important;
+   }
+
+   #step-welcome label._label_1nhvq_40::after,
+   #step-welcome label._label_1nhvq_40 > div {
+     height: 40px !important;
+   }
+ }
+
+#step-welcome label._label_1nhvq_40 {
+  width: 166px;
+  height: 288.34px;
+  flex: 0 0 166px !important;
+  display: block !important;
+  position: relative !important;
+  border-radius: 16px;
+  overflow: hidden;
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+  background: transparent;
+  padding: 0 !important;
+  box-sizing: border-box;
+  --welcome-card-border-color: var(--secondary);
+}
+
+#step-welcome label._label_1nhvq_40:has(input[type=radio]:checked) {
+  --welcome-card-border-color: var(--accent);
+  box-shadow: none !important;
+}
+
+#step-welcome label._label_1nhvq_40.orangeSelected {
+  --welcome-card-border-color: var(--accent);
+  box-shadow: none !important;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  #step-welcome label._label_1nhvq_40:hover:not(:disabled) {
+    --welcome-card-border-color: var(--accent);
+    box-shadow: 0 6px 16px color-mix(in srgb, var(--accent) 25%, transparent), 0 2px 4px #0000001a !important;
+  }
+
+  #step-welcome label._label_1nhvq_40:hover:not(:has(input[type=radio]:checked)) {
+    --welcome-card-border-color: var(--accent-hover);
+    box-shadow: 0 0 15px rgba(var(--accent-rgb), 0.3) !important;
+  }
+}
+
+#step-welcome label._label_1nhvq_40 picture {
+  display: block !important;
+  position: absolute !important;
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  overflow: hidden !important;
+}
+
+#step-welcome label._label_1nhvq_40 img {
+  display: block !important;
+  position: absolute !important;
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  margin: 0 !important;
+  object-fit: cover !important;
+  object-position: center !important;
+  filter: none !important;
+  opacity: 1 !important;
+  z-index: 0 !important;
+}
+
+#step-welcome label._label_1nhvq_40 picture::before,
+#step-welcome label._label_1nhvq_40 picture::after {
+  content: none !important;
+}
+
+#step-welcome label._label_1nhvq_40::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 16px;
+  border: 2px solid var(--welcome-card-border-color);
+  pointer-events: none;
+  z-index: 3;
+}
+
+#step-welcome label._label_1nhvq_40::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 46px;
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 0.55) 100%);
+  pointer-events: none;
+  z-index: 1;
+}
+
+#step-welcome label._label_1nhvq_40 > div {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 46px;
+  padding: 0;
+  border-radius: 0;
+  background: transparent !important;
+  color: #fff;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 2;
+}
+
+#step-welcome label._label_1nhvq_40 > div p {
+  margin: 0;
+  color: inherit !important;
+  font-weight: 700;
+  line-height: 18px;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.5) !important;
+}
+
 section label._cardWithCheckbox_xzcqt_46:has(input[type="checkbox"]:checked),
 section ._cardWithCheckbox_xzcqt_46:has(._input_xzcqt_51:checked) {
   border-color: var(--accent) !important;
@@ -299,22 +492,32 @@ label._cardWithCheckbox_xzcqt_46:has(input[type="checkbox"]:checked)::after {
 
  @media (max-width: 530px) {
    #step-summary #summary-main {
-     width: 100%;
-     max-width: 100%;
-     overflow-x: hidden;
-     box-sizing: border-box;
+     width: 100% !important;
+     max-width: 100% !important;
+     overflow-x: hidden !important;
+     box-sizing: border-box !important;
+   }
+
+   #step-summary {
+     overflow-x: hidden !important;
+   }
+
+   #step-summary ._summary_1ccmu_54 {
+     max-width: 100% !important;
+     overflow-x: hidden !important;
+     box-sizing: border-box !important;
    }
 
    #step-summary #summary-image-block._cardGenerateImage_1ccmu_74._imageGenerate_1ccmu_99 {
-     width: 100%;
-     max-width: 454px;
-     height: auto;
+     width: 100% !important;
+     max-width: 454px !important;
+     height: auto !important;
      aspect-ratio: 454 / 616;
-     box-sizing: border-box;
+     box-sizing: border-box !important;
    }
 
    #step-summary #summary-creating {
-     padding: 0 16px;
+     padding: 0 16px !important;
    }
 
    #step-landing ._section_1gsgk_40 ._grid_1gsgk_58 {
@@ -592,7 +795,9 @@ label._cardWithCheckbox_xzcqt_46:has(input[type="checkbox"]:checked)::after {
  #checkout-modal ._sectionContainer_d5uie_153:not(._payButtons_d5uie_184) ._paymentWrapper_d5uie_57 {
    width: 384px;
    max-width: 100%;
-   height: 363px;
+   height: auto !important;
+   min-height: 363px !important;
+   overflow: visible !important;
    padding: 0;
    margin: 0 auto;
    background: transparent;
@@ -607,7 +812,9 @@ label._cardWithCheckbox_xzcqt_46:has(input[type="checkbox"]:checked)::after {
 
  #checkout-modal #payment-form-container_\#123 {
    width: 100%;
-   height: 324px;
+   height: auto !important;
+   min-height: 324px !important;
+   overflow: visible !important;
    background: transparent;
  }
 
@@ -704,6 +911,19 @@ label._cardWithCheckbox_xzcqt_46:has(input[type="checkbox"]:checked)::after {
  #checkout-modal ._fakePaymentInput:focus {
    border-color: #2C2E35;
    box-shadow: none;
+ }
+
+ #checkout-modal ._fakePaymentInput._inputError {
+   border-color: #FF4D4F !important;
+ }
+
+ #checkout-modal ._paymentErrorText {
+   color: #FF4D4F;
+   font-size: 12px;
+   line-height: 16px;
+   font-weight: 600;
+   margin-top: -2px;
+   white-space: normal;
  }
 
  #checkout-modal ._fakePaymentInput::placeholder {
