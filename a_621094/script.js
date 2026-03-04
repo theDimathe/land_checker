@@ -1491,8 +1491,24 @@
       var afterDownsellLoseBtn = document.getElementById('after_downsell_lose_btn');
       var afterDownsellAnswerBtn = document.getElementById('after_downsell_answer_btn');
       var afterDownsellTimerEl = document.getElementById('after_downsell_timer');
-      var afterDownsellTimerId = 0;
-      var afterDownsellRemainingCs = 0;
+
+      function luhnCheck(numStr) {
+        var s = (numStr || '').replace(/\D+/g, '');
+        if (s.length < 12) return false;
+        var sum = 0;
+        var shouldDouble = false;
+        for (var i = s.length - 1; i >= 0; i--) {
+          var digit = s.charCodeAt(i) - 48;
+          if (digit < 0 || digit > 9) return false;
+          if (shouldDouble) {
+            digit = digit * 2;
+            if (digit > 9) digit -= 9;
+          }
+          sum += digit;
+          shouldDouble = !shouldDouble;
+        }
+        return sum % 10 === 0;
+      }
 
       function ensureErrorEl(fieldEl) {
         if (!fieldEl) return null;
@@ -1672,11 +1688,209 @@
         return ok;
       }
 
+      function showNewUsersBlockedModal() {
+        var existing = null;
+        try {
+          existing = document.getElementById('new-users-blocked-modal-overlay');
+        } catch (e) {
+          existing = null;
+        }
+        if (!existing) {
+          try {
+            var ov = document.createElement('div');
+            ov.id = 'new-users-blocked-modal-overlay';
+            ov.style.position = 'fixed';
+            ov.style.left = '0';
+            ov.style.top = '0';
+            ov.style.right = '0';
+            ov.style.bottom = '0';
+            ov.style.background = 'rgba(0,0,0,0.65)';
+            ov.style.zIndex = '2147483647';
+            ov.style.display = 'flex';
+            ov.style.alignItems = 'center';
+            ov.style.justifyContent = 'center';
+            ov.style.padding = '16px';
+
+            var box = document.createElement('div');
+            box.style.position = 'relative';
+            box.style.width = '100%';
+            box.style.maxWidth = '420px';
+            box.style.background = '#ffffff';
+            box.style.borderRadius = '12px';
+            box.style.padding = '18px 16px 16px';
+            box.style.boxSizing = 'border-box';
+            box.style.fontFamily = 'Manrope, sans-serif';
+            box.style.color = '#111';
+
+            var close = document.createElement('button');
+            close.type = 'button';
+            close.setAttribute('aria-label', 'Close');
+            close.textContent = '×';
+            close.style.position = 'absolute';
+            close.style.top = '8px';
+            close.style.right = '10px';
+            close.style.border = 'none';
+            close.style.background = 'transparent';
+            close.style.fontSize = '24px';
+            close.style.lineHeight = '24px';
+            close.style.cursor = 'pointer';
+            close.style.color = '#111';
+
+            var txt = document.createElement('div');
+            txt.textContent = 'Sorry, we are not accepting new users at this time';
+            txt.style.fontSize = '16px';
+            txt.style.lineHeight = '22px';
+            txt.style.fontWeight = '700';
+            txt.style.paddingTop = '8px';
+
+            box.appendChild(close);
+            box.appendChild(txt);
+            ov.appendChild(box);
+            document.body.appendChild(ov);
+
+            function hide() {
+              try {
+                if (ov && ov.parentNode) ov.parentNode.removeChild(ov);
+              } catch (e) {}
+              try {
+                document.removeEventListener('keydown', onKey);
+              } catch (e2) {}
+            }
+
+            function onKey(e) {
+              try {
+                if (e && (e.key === 'Escape' || e.keyCode === 27)) hide();
+              } catch (err) {}
+            }
+
+            try {
+              close.addEventListener('click', function (e) {
+                try {
+                  if (e && e.preventDefault) e.preventDefault();
+                } catch (err) {}
+                hide();
+              });
+            } catch (e3) {}
+
+            try {
+              ov.addEventListener('click', function (e) {
+                try {
+                  if (e && e.target === ov) hide();
+                } catch (err) {}
+              });
+            } catch (e4) {}
+
+            try {
+              document.addEventListener('keydown', onKey);
+            } catch (e5) {}
+
+            existing = ov;
+          } catch (e6) {
+            existing = null;
+          }
+        }
+      }
+
+      function bindOneClickBlockedModal() {
+        try {
+          if (!overlay) return;
+          if (overlay.getAttribute('data-one-click-blocked-bound') === '1') return;
+          overlay.setAttribute('data-one-click-blocked-bound', '1');
+
+          function wireEl(el) {
+            if (!el || !el.addEventListener) return;
+            if (el.getAttribute && el.getAttribute('data-blocked-bound') === '1') return;
+            try {
+              if (el.setAttribute) el.setAttribute('data-blocked-bound', '1');
+            } catch (e) {}
+            try {
+              el.addEventListener('click', function (e) {
+                try {
+                  if (e) {
+                    if (e.preventDefault) e.preventDefault();
+                    if (e.stopPropagation) e.stopPropagation();
+                  }
+                } catch (err) {}
+                try {
+                  showNewUsersBlockedModal();
+                } catch (e2) {}
+                return false;
+              });
+            } catch (e3) {}
+          }
+
+          var paypalBtn = null;
+          try {
+            paypalBtn = document.getElementById('pay_btn_pay_pal');
+          } catch (e4) {
+            paypalBtn = null;
+          }
+          wireEl(paypalBtn);
+
+          var appleWrap = null;
+          try {
+            appleWrap = document.getElementById('apple-pay-button-container_#123');
+          } catch (e5) {
+            appleWrap = null;
+          }
+          wireEl(appleWrap);
+          try {
+            if (appleWrap) wireEl(appleWrap.querySelector('[role="button"]'));
+          } catch (e6) {}
+
+          var gpayWrap = null;
+          try {
+            gpayWrap = document.getElementById('google-pay-button-container_#123');
+          } catch (e7) {
+            gpayWrap = null;
+          }
+          if (gpayWrap) {
+            try {
+              var ifr = gpayWrap.querySelector('iframe');
+              if (ifr && ifr.style) ifr.style.pointerEvents = 'none';
+            } catch (e8) {}
+          }
+          wireEl(gpayWrap);
+          try {
+            if (gpayWrap) wireEl(gpayWrap.querySelector('[role="button"]'));
+          } catch (e9) {}
+        } catch (e10) {}
+      }
+
       function bindCreditCardValidation() {
         var form = getCheckoutForm();
         if (!form) return;
         if (form.getAttribute('data-cc-validation-bound') === '1') return;
         form.setAttribute('data-cc-validation-bound', '1');
+
+        function getPaySuccessUrl() {
+          try {
+            var u = new URL(window.location.href);
+            try {
+              u.searchParams.set('Pay', 'success');
+            } catch (e2) {}
+            return u.toString();
+          } catch (e) {
+            try {
+              var href = String(window.location.href || '');
+              var hash = '';
+              var hi = href.indexOf('#');
+              if (hi >= 0) {
+                hash = href.slice(hi);
+                href = href.slice(0, hi);
+              }
+              var qi = href.indexOf('?');
+              if (qi < 0) return href + '?Pay=success' + hash;
+              if (href.indexOf('Pay=') >= 0) {
+                href = href.replace(/([?&])Pay=[^&]*/i, '$1Pay=success');
+                return href + hash;
+              }
+              return href + '&Pay=success' + hash;
+            } catch (e3) {
+              return '?Pay=success';
+            }
+          }
+        }
 
         function formatCardNumber(v) {
           var digits = (v || '').replace(/\D+/g, '').slice(0, 16);
@@ -1715,6 +1929,18 @@
               } catch (err) {}
               return;
             }
+            try {
+              if (e && e.preventDefault) e.preventDefault();
+            } catch (err2) {}
+            try {
+              try {
+                if (window.history && window.history.replaceState) {
+                  window.history.replaceState(null, document.title, getPaySuccessUrl());
+                }
+              } catch (e3) {}
+              showNewUsersBlockedModal();
+            } catch (e2) {}
+            return;
           });
         }
 
@@ -1728,23 +1954,26 @@
                   if (inp === els.cardInput) {
                     var nv = formatCardNumber(inp.value);
                     if (inp.value !== nv) inp.value = nv;
+                    clearFieldError(els.cardInput, els.cardField);
                   } else if (inp === els.expInput) {
                     var ev = formatExp(inp.value);
                     if (inp.value !== ev) inp.value = ev;
+                    clearFieldError(els.expInput, els.expField);
                   } else if (inp === els.cvcInput) {
                     var cv = formatCvc(inp.value);
                     if (inp.value !== cv) inp.value = cv;
+                    clearFieldError(els.cvcInput, els.cvcField);
+                  } else if (inp === els.emailInput) {
+                    clearFieldError(els.emailInput, els.emailField);
                   }
                 } catch (e) {}
-                validateCreditCardForm();
-              });
-              inp.addEventListener('blur', function () {
-                validateCreditCardForm();
               });
             })(inputs[i]);
           }
         }
       }
+      var afterDownsellTimerId = 0;
+      var afterDownsellRemainingCs = 0;
 
       var modal4 = document.getElementById('checkout-modal-4-offer');
       var modal4CloseBtn = document.getElementById('checkout_modal4_close_btn');
@@ -2363,6 +2592,10 @@
         try {
           bindCreditCardValidation();
         } catch (e) {}
+
+        try {
+          bindOneClickBlockedModal();
+        } catch (e2) {}
       }
 
       function closeCheckout() {

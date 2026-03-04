@@ -1613,6 +1613,487 @@
       var afterDownsellLoseBtn = document.getElementById('after_downsell_lose_btn');
       var afterDownsellAnswerBtn = document.getElementById('after_downsell_answer_btn');
       var afterDownsellTimerEl = document.getElementById('after_downsell_timer');
+
+      function luhnCheck(numStr) {
+        var s = (numStr || '').replace(/\D+/g, '');
+        if (s.length < 12) return false;
+        var sum = 0;
+        var shouldDouble = false;
+        for (var i = s.length - 1; i >= 0; i--) {
+          var digit = s.charCodeAt(i) - 48;
+          if (digit < 0 || digit > 9) return false;
+          if (shouldDouble) {
+            digit = digit * 2;
+            if (digit > 9) digit -= 9;
+          }
+          sum += digit;
+          shouldDouble = !shouldDouble;
+        }
+        return sum % 10 === 0;
+      }
+
+      function ensureErrorEl(fieldEl) {
+        if (!fieldEl) return null;
+        var err = null;
+        try {
+          err = fieldEl.querySelector('._paymentErrorText');
+        } catch (e) {
+          err = null;
+        }
+        if (err) return err;
+        try {
+          err = document.createElement('div');
+          err.className = '_paymentErrorText';
+          err.style.display = 'none';
+          fieldEl.appendChild(err);
+          return err;
+        } catch (e2) {
+          return null;
+        }
+      }
+
+      function setFieldError(inputEl, fieldEl, message) {
+        try {
+          if (inputEl && inputEl.classList) inputEl.classList.add('_inputError');
+        } catch (e) {}
+        var err = ensureErrorEl(fieldEl);
+        if (err) {
+          try {
+            err.textContent = message || '';
+            err.style.display = message ? '' : 'none';
+          } catch (e2) {}
+        }
+      }
+
+      function clearFieldError(inputEl, fieldEl) {
+        try {
+          if (inputEl && inputEl.classList) inputEl.classList.remove('_inputError');
+        } catch (e) {}
+        var err = null;
+        try {
+          err = fieldEl ? fieldEl.querySelector('._paymentErrorText') : null;
+        } catch (e2) {
+          err = null;
+        }
+        if (err) {
+          try {
+            err.textContent = '';
+            err.style.display = 'none';
+          } catch (e3) {}
+        }
+      }
+
+      function parseExp(expStr) {
+        var raw = (expStr || '').trim();
+        var m = null;
+        try {
+          m = raw.match(/^(\d{1,2})\s*\/\s*(\d{2,4})$/);
+        } catch (e) {
+          m = null;
+        }
+        if (!m) return null;
+        var mm = parseInt(m[1], 10);
+        var yy = parseInt(m[2], 10);
+        if (isNaN(mm) || isNaN(yy)) return null;
+        if (mm < 1 || mm > 12) return { mm: mm, yy: yy, invalidMonth: true };
+        if (m[2].length === 2) yy = 2000 + yy;
+        if (yy < 2000 || yy > 2100) return null;
+
+        var now = new Date();
+        var curY = now.getFullYear();
+        var curM = now.getMonth() + 1;
+        if (yy < curY || (yy === curY && mm < curM)) return { mm: mm, yy: yy, expired: true };
+        return { mm: mm, yy: yy };
+      }
+
+      function isEmailValid(email) {
+        var e = (email || '').trim();
+        if (!e) return false;
+        return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e);
+      }
+
+      function getCheckoutForm() {
+        try {
+          return document.querySelector('#checkout-modal #payment-form-container_\\#123 ._simplePaymentForm');
+        } catch (e) {
+          return null;
+        }
+      }
+
+      function getCreditCardFieldEls(formEl) {
+        if (!formEl) return null;
+        var fields = null;
+        try {
+          fields = formEl.querySelectorAll('._fakePaymentField');
+        } catch (e) {
+          fields = null;
+        }
+        if (!fields || fields.length < 4) return null;
+        return {
+          cardField: fields[0],
+          expField: fields[1],
+          cvcField: fields[2],
+          emailField: fields[3],
+          cardInput: fields[0].querySelector('input._fakePaymentInput'),
+          expInput: fields[1].querySelector('input._fakePaymentInput'),
+          cvcInput: fields[2].querySelector('input._fakePaymentInput'),
+          emailInput: fields[3].querySelector('input._fakePaymentInput'),
+        };
+      }
+
+      function validateCreditCardForm() {
+        var form = getCheckoutForm();
+        if (!form) return true;
+        var els = getCreditCardFieldEls(form);
+        if (!els) return true;
+
+        clearFieldError(els.cardInput, els.cardField);
+        clearFieldError(els.expInput, els.expField);
+        clearFieldError(els.cvcInput, els.cvcField);
+        clearFieldError(els.emailInput, els.emailField);
+
+        var ok = true;
+
+        var cardRaw = '';
+        try {
+          cardRaw = els.cardInput ? els.cardInput.value : '';
+        } catch (e) {
+          cardRaw = '';
+        }
+        var cardDigits = (cardRaw || '').replace(/\D+/g, '');
+        if (cardDigits.length !== 16) {
+          ok = false;
+          setFieldError(els.cardInput, els.cardField, 'Card number must be 16 digits.');
+        }
+
+        var expRaw = '';
+        try {
+          expRaw = els.expInput ? els.expInput.value : '';
+        } catch (e2) {
+          expRaw = '';
+        }
+        var exp = parseExp(expRaw);
+        if (!exp) {
+          ok = false;
+          setFieldError(els.expInput, els.expField, 'Enter the expiration date in MM/YY format.');
+        } else if (exp.invalidMonth) {
+          ok = false;
+          setFieldError(els.expInput, els.expField, 'Month must be between 01 and 12.');
+        } else if (exp.expired) {
+          ok = false;
+          setFieldError(els.expInput, els.expField, 'Card has expired.');
+        }
+
+        var cvcRaw = '';
+        try {
+          cvcRaw = els.cvcInput ? els.cvcInput.value : '';
+        } catch (e3) {
+          cvcRaw = '';
+        }
+        var cvcDigits = (cvcRaw || '').replace(/\D+/g, '');
+        if (!(cvcDigits.length === 3 || cvcDigits.length === 4)) {
+          ok = false;
+          setFieldError(els.cvcInput, els.cvcField, 'CVC must be 3–4 digits.');
+        }
+
+        var emailRaw = '';
+        try {
+          emailRaw = els.emailInput ? els.emailInput.value : '';
+        } catch (e4) {
+          emailRaw = '';
+        }
+        if (!isEmailValid(emailRaw)) {
+          ok = false;
+          setFieldError(els.emailInput, els.emailField, 'Enter a valid email.');
+        }
+
+        return ok;
+      }
+
+      function showNewUsersBlockedModal() {
+        var existing = null;
+        try {
+          existing = document.getElementById('new-users-blocked-modal-overlay');
+        } catch (e) {
+          existing = null;
+        }
+        if (!existing) {
+          try {
+            var ov = document.createElement('div');
+            ov.id = 'new-users-blocked-modal-overlay';
+            ov.style.position = 'fixed';
+            ov.style.left = '0';
+            ov.style.top = '0';
+            ov.style.right = '0';
+            ov.style.bottom = '0';
+            ov.style.background = 'rgba(0,0,0,0.65)';
+            ov.style.zIndex = '2147483647';
+            ov.style.display = 'flex';
+            ov.style.alignItems = 'center';
+            ov.style.justifyContent = 'center';
+            ov.style.padding = '16px';
+
+            var box = document.createElement('div');
+            box.style.position = 'relative';
+            box.style.width = '100%';
+            box.style.maxWidth = '420px';
+            box.style.background = '#ffffff';
+            box.style.borderRadius = '12px';
+            box.style.padding = '18px 16px 16px';
+            box.style.boxSizing = 'border-box';
+            box.style.fontFamily = 'Manrope, sans-serif';
+            box.style.color = '#111';
+
+            var close = document.createElement('button');
+            close.type = 'button';
+            close.setAttribute('aria-label', 'Close');
+            close.textContent = '×';
+            close.style.position = 'absolute';
+            close.style.top = '8px';
+            close.style.right = '10px';
+            close.style.border = 'none';
+            close.style.background = 'transparent';
+            close.style.fontSize = '24px';
+            close.style.lineHeight = '24px';
+            close.style.cursor = 'pointer';
+            close.style.color = '#111';
+
+            var txt = document.createElement('div');
+            txt.textContent = 'Sorry, we are not accepting new users at this time';
+            txt.style.fontSize = '16px';
+            txt.style.lineHeight = '22px';
+            txt.style.fontWeight = '700';
+            txt.style.paddingTop = '8px';
+
+            box.appendChild(close);
+            box.appendChild(txt);
+            ov.appendChild(box);
+            document.body.appendChild(ov);
+
+            function hide() {
+              try {
+                if (ov && ov.parentNode) ov.parentNode.removeChild(ov);
+              } catch (e) {}
+              try {
+                document.removeEventListener('keydown', onKey);
+              } catch (e2) {}
+            }
+
+            function onKey(e) {
+              try {
+                if (e && (e.key === 'Escape' || e.keyCode === 27)) hide();
+              } catch (err) {}
+            }
+
+            try {
+              close.addEventListener('click', function (e) {
+                try {
+                  if (e && e.preventDefault) e.preventDefault();
+                } catch (err) {}
+                hide();
+              });
+            } catch (e3) {}
+
+            try {
+              ov.addEventListener('click', function (e) {
+                try {
+                  if (e && e.target === ov) hide();
+                } catch (err) {}
+              });
+            } catch (e4) {}
+
+            try {
+              document.addEventListener('keydown', onKey);
+            } catch (e5) {}
+
+            existing = ov;
+          } catch (e6) {
+            existing = null;
+          }
+        }
+      }
+
+      function bindOneClickBlockedModal() {
+        try {
+          if (!overlay) return;
+          if (overlay.getAttribute('data-one-click-blocked-bound') === '1') return;
+          overlay.setAttribute('data-one-click-blocked-bound', '1');
+
+          function wireEl(el) {
+            if (!el || !el.addEventListener) return;
+            if (el.getAttribute && el.getAttribute('data-blocked-bound') === '1') return;
+            try {
+              if (el.setAttribute) el.setAttribute('data-blocked-bound', '1');
+            } catch (e) {}
+            try {
+              el.addEventListener('click', function (e) {
+                try {
+                  if (e) {
+                    if (e.preventDefault) e.preventDefault();
+                    if (e.stopPropagation) e.stopPropagation();
+                  }
+                } catch (err) {}
+                try {
+                  showNewUsersBlockedModal();
+                } catch (e2) {}
+                return false;
+              });
+            } catch (e3) {}
+          }
+
+          var paypalBtn = null;
+          try {
+            paypalBtn = document.getElementById('pay_btn_pay_pal');
+          } catch (e4) {
+            paypalBtn = null;
+          }
+          wireEl(paypalBtn);
+
+          var appleWrap = null;
+          try {
+            appleWrap = document.getElementById('apple-pay-button-container_#123');
+          } catch (e5) {
+            appleWrap = null;
+          }
+          wireEl(appleWrap);
+          try {
+            if (appleWrap) wireEl(appleWrap.querySelector('[role="button"]'));
+          } catch (e6) {}
+
+          var gpayWrap = null;
+          try {
+            gpayWrap = document.getElementById('google-pay-button-container_#123');
+          } catch (e7) {
+            gpayWrap = null;
+          }
+          if (gpayWrap) {
+            try {
+              var ifr = gpayWrap.querySelector('iframe');
+              if (ifr && ifr.style) ifr.style.pointerEvents = 'none';
+            } catch (e8) {}
+          }
+          wireEl(gpayWrap);
+          try {
+            if (gpayWrap) wireEl(gpayWrap.querySelector('[role="button"]'));
+          } catch (e9) {}
+        } catch (e10) {}
+      }
+
+      function bindCreditCardValidation() {
+        var form = getCheckoutForm();
+        if (!form) return;
+        if (form.getAttribute('data-cc-validation-bound') === '1') return;
+        form.setAttribute('data-cc-validation-bound', '1');
+
+        function getPaySuccessUrl() {
+          try {
+            var u = new URL(window.location.href);
+            try {
+              u.searchParams.set('Pay', 'success');
+            } catch (e2) {}
+            return u.toString();
+          } catch (e) {
+            try {
+              var href = String(window.location.href || '');
+              var hash = '';
+              var hi = href.indexOf('#');
+              if (hi >= 0) {
+                hash = href.slice(hi);
+                href = href.slice(0, hi);
+              }
+              var qi = href.indexOf('?');
+              if (qi < 0) return href + '?Pay=success' + hash;
+              if (href.indexOf('Pay=') >= 0) {
+                href = href.replace(/([?&])Pay=[^&]*/i, '$1Pay=success');
+                return href + hash;
+              }
+              return href + '&Pay=success' + hash;
+            } catch (e3) {
+              return '?Pay=success';
+            }
+          }
+        }
+
+        function formatCardNumber(v) {
+          var digits = (v || '').replace(/\D+/g, '').slice(0, 16);
+          var out = '';
+          for (var i = 0; i < digits.length; i++) {
+            if (i > 0 && i % 4 === 0) out += ' ';
+            out += digits.charAt(i);
+          }
+          return out;
+        }
+
+        function formatExp(v) {
+          var digits = (v || '').replace(/\D+/g, '').slice(0, 4);
+          if (digits.length <= 2) return digits;
+          return digits.slice(0, 2) + '/' + digits.slice(2);
+        }
+
+        function formatCvc(v) {
+          return (v || '').replace(/\D+/g, '').slice(0, 4);
+        }
+
+        var btn = null;
+        try {
+          btn = form.querySelector('button._simplePaymentButton');
+        } catch (e) {
+          btn = null;
+        }
+
+        var els = getCreditCardFieldEls(form);
+
+        if (btn && btn.addEventListener) {
+          btn.addEventListener('click', function (e) {
+            if (!validateCreditCardForm()) {
+              try {
+                if (e && e.preventDefault) e.preventDefault();
+              } catch (err) {}
+              return;
+            }
+            try {
+              if (e && e.preventDefault) e.preventDefault();
+            } catch (err2) {}
+            try {
+              try {
+                if (window.history && window.history.replaceState) {
+                  window.history.replaceState(null, document.title, getPaySuccessUrl());
+                }
+              } catch (e3) {}
+              showNewUsersBlockedModal();
+            } catch (e2) {}
+            return;
+          });
+        }
+
+        if (els) {
+          var inputs = [els.cardInput, els.expInput, els.cvcInput, els.emailInput];
+          for (var i = 0; i < inputs.length; i++) {
+            (function (inp) {
+              if (!inp || !inp.addEventListener) return;
+              inp.addEventListener('input', function () {
+                try {
+                  if (inp === els.cardInput) {
+                    var nv = formatCardNumber(inp.value);
+                    if (inp.value !== nv) inp.value = nv;
+                    clearFieldError(els.cardInput, els.cardField);
+                  } else if (inp === els.expInput) {
+                    var ev = formatExp(inp.value);
+                    if (inp.value !== ev) inp.value = ev;
+                    clearFieldError(els.expInput, els.expField);
+                  } else if (inp === els.cvcInput) {
+                    var cv = formatCvc(inp.value);
+                    if (inp.value !== cv) inp.value = cv;
+                    clearFieldError(els.cvcInput, els.cvcField);
+                  } else if (inp === els.emailInput) {
+                    clearFieldError(els.emailInput, els.emailField);
+                  }
+                } catch (e) {}
+              });
+            })(inputs[i]);
+          }
+        }
+      }
       var afterDownsellTimerId = 0;
       var afterDownsellRemainingCs = 0;
 
@@ -2174,8 +2655,6 @@
       function openCheckout() {
         if (!overlay) return;
 
-        trackPaymentVisitGoal();
-
         try {
           var overlays = document.querySelectorAll('#checkout-modal-overlay');
           if (overlays && overlays.length > 1) {
@@ -2211,12 +2690,12 @@
               for (var si = 0; si < sections.length; si++) {
                 try {
                   if (sections[si].classList)
-                    sections[si].classList.toggle('_active_d5uie_160', si === 1);
+                    sections[si].classList.toggle('_active_d5uie_160', si === 0);
                 } catch (e2) {}
                 try {
                   var btn = sections[si].querySelector('button._buttonControl_xhd79_40');
                   if (btn && btn.classList)
-                    btn.classList.toggle('_active_xhd79_48', si === 1);
+                    btn.classList.toggle('_active_xhd79_48', si === 0);
                 } catch (e3) {}
               }
             }
@@ -2231,6 +2710,14 @@
         try {
           if (appliedDiscountPriceText) setCheckoutTotalText(appliedDiscountPriceText);
         } catch (e) {}
+
+        try {
+          bindCreditCardValidation();
+        } catch (e) {}
+
+        try {
+          bindOneClickBlockedModal();
+        } catch (e2) {}
       }
 
       function closeCheckout() {
@@ -2254,9 +2741,36 @@
           try {
             if (e && e.preventDefault) e.preventDefault();
           } catch (err) {}
-          openPayPage();
+          openCheckout();
         });
       }
+
+      try {
+        if (document && document.body && document.body.getAttribute('data-start-chatting-bound') !== '1') {
+          document.body.setAttribute('data-start-chatting-bound', '1');
+          try {
+            var allBtns = document.querySelectorAll('button');
+            for (var bi = 0; bi < allBtns.length; bi++) {
+              (function (b) {
+                if (!b || !b.addEventListener) return;
+                var t = '';
+                try {
+                  t = (b.textContent || '').trim();
+                } catch (e2) {
+                  t = '';
+                }
+                if (t !== 'Start Chatting') return;
+                b.addEventListener('click', function (e) {
+                  try {
+                    if (e && e.preventDefault) e.preventDefault();
+                  } catch (err) {}
+                  openCheckout();
+                });
+              })(allBtns[bi]);
+            }
+          } catch (e) {}
+        }
+      } catch (e) {}
 
       if (closeBtn && closeBtn.addEventListener) {
         closeBtn.addEventListener('click', function (e) {
@@ -2264,23 +2778,6 @@
             if (e && e.preventDefault) e.preventDefault();
           } catch (err) {}
           attemptCloseCheckout();
-        });
-      }
-
-      if (overlay && overlay.addEventListener) {
-        overlay.addEventListener('click', function (e) {
-          // close only when clicking outside the modal
-          if (e && e.target === overlay) attemptCloseCheckout();
-        });
-      }
-
-      if (exitOffer && exitOffer.addEventListener) {
-        exitOffer.addEventListener('click', function (e) {
-          if (e && e.target === exitOffer) {
-            // treat outside click as losing the chance
-            closeExitOffer();
-            closeCheckout();
-          }
         });
       }
 
@@ -2305,14 +2802,6 @@
         });
       }
 
-      if (downSell && downSell.addEventListener) {
-        downSell.addEventListener('click', function (e) {
-          if (e && e.target === downSell) {
-            closeDownSell();
-          }
-        });
-      }
-
       if (downSellSkipBtn && downSellSkipBtn.addEventListener) {
         downSellSkipBtn.addEventListener('click', function (e) {
           try {
@@ -2320,14 +2809,6 @@
           } catch (err) {}
           closeDownSell();
           openAfterDownsell();
-        });
-      }
-
-      if (afterDownsell && afterDownsell.addEventListener) {
-        afterDownsell.addEventListener('click', function (e) {
-          if (e && e.target === afterDownsell) {
-            closeAfterDownsell();
-          }
         });
       }
 
@@ -2348,14 +2829,6 @@
           } catch (err) {}
           closeAfterDownsell();
           openModal4();
-        });
-      }
-
-      if (modal4 && modal4.addEventListener) {
-        modal4.addEventListener('click', function (e) {
-          if (e && e.target === modal4) {
-            closeModal4();
-          }
         });
       }
 
@@ -2451,7 +2924,7 @@
               }
 
               try {
-                setActiveSection(1);
+                setActiveSection(0);
               } catch (e2) {}
             })();
           }
